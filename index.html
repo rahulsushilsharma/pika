@@ -1,11 +1,76 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+
+    <!-- Basic SEO -->
+    <title>Pika - Photobooth Web App</title>
+    <meta
+      name="description"
+      content="Pika is a fun and modern online photobooth web app. Capture photos, apply filters, and download instantly — all in your browser."
+    />
+    <meta
+      name="keywords"
+      content="photobooth, online camera app, selfie booth, photo editor, web photobooth, Pika app"
+    />
+    <meta name="author" content="Rahul Sharma" />
+    <meta name="robots" content="index, follow" />
+
+    <!-- Viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>pika</title>
+
+    <!-- Canonical URL -->
+    <link rel="canonical" href="https://pika.example.com/" />
+
+    <!-- Favicon / Icons -->
+    <link rel="icon" type="image/png" href="/favicon-96x96.png" sizes="96x96" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="shortcut icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-title" content="Pika" />
+    <link rel="manifest" href="/site.webmanifest" />
+
+    <!-- Open Graph (Facebook, LinkedIn, etc) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Pika - Photobooth Web App" />
+    <meta
+      property="og:description"
+      content="Capture photos with a modern web-based photobooth. No install. Just click, snap, save."
+    />
+    <meta property="og:url" content="https://pika.example.com/" />
+    <meta property="og:image" content="https://pika.example.com/preview.png" />
+    <meta property="og:site_name" content="Pika" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Pika - Photobooth Web App" />
+    <meta
+      name="twitter:description"
+      content="Take instant photos with Pika, a browser-based photobooth app."
+    />
+    <meta name="twitter:image" content="https://pika.example.com/preview.png" />
+
+    <!-- Theme Color (mobile UI) -->
+    <meta name="theme-color" content="#ff2b2b" />
+
+    <!-- Preload Main Script -->
+    <link rel="preload" href="/src/main.tsx" as="script" />
+
+    <!-- Structured Data (JSON-LD) -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Pika Photobooth",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Web",
+        "description": "A browser-based photobooth web app for instant images",
+        "image": "https://pika.example.com/preview.png",
+        "url": "https://pika.example.com/"
+      }
+    </script>
   </head>
+
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
