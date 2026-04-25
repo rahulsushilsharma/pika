@@ -1,5 +1,8 @@
 import EffectPicker from "@/components/ui/EffectPicker";
-import LayoutPicker, { DEFAULT_LAYOUT, type LayoutTemplate } from "@/components/ui/LayoutPicker";
+import LayoutPicker, {
+  DEFAULT_LAYOUT,
+  type LayoutTemplate,
+} from "@/components/ui/LayoutPicker";
 import ThemePicker from "@/components/ui/ThemePicker";
 import {
   DEFAULT_EFFECT,
@@ -30,7 +33,8 @@ function playShutterSound() {
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
     for (let i = 0; i < bufferSize; i++) {
-      data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.012));
+      data[i] =
+        (Math.random() * 2 - 1) * Math.exp(-i / (ctx.sampleRate * 0.012));
     }
     const noise = ctx.createBufferSource();
     noise.buffer = buffer;
@@ -65,7 +69,10 @@ function captureFrame(video: HTMLVideoElement): string {
   return canvas.toDataURL("image/jpeg");
 }
 
-function countdown(seconds: number, onTick: (n: number) => void): Promise<void> {
+function countdown(
+  seconds: number,
+  onTick: (n: number) => void,
+): Promise<void> {
   return new Promise((resolve) => {
     onTick(seconds);
     const id = setInterval(() => {
@@ -86,7 +93,7 @@ async function buildCollage(
   rawPhotos: string[],
   gridSize: number,
   theme: BoothTheme,
-  effect: PhotoEffect
+  effect: PhotoEffect,
 ): Promise<string> {
   const ctx = canvas.getContext("2d")!;
 
@@ -98,8 +105,8 @@ async function buildCollage(
           img.onload = () => res(img);
           img.onerror = rej;
           img.src = src;
-        })
-    )
+        }),
+    ),
   );
 
   const imgW = loaded[0].width;
@@ -136,7 +143,12 @@ async function buildCollage(
     ctx.save();
     ctx.strokeStyle = frameColor;
     ctx.lineWidth = frameWidth;
-    ctx.strokeRect(x - frameWidth / 2, y - frameWidth / 2, imgW + frameWidth, imgH + frameWidth);
+    ctx.strokeRect(
+      x - frameWidth / 2,
+      y - frameWidth / 2,
+      imgW + frameWidth,
+      imgH + frameWidth,
+    );
     ctx.restore();
   });
 
@@ -188,15 +200,21 @@ function BlobBg({ accent }: { accent: string }) {
     >
       <div
         className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full opacity-20 transition-all duration-700"
-        style={{ background: `radial-gradient(circle, ${accent} 0%, transparent 70%)` }}
+        style={{
+          background: `radial-gradient(circle, ${accent} 0%, transparent 70%)`,
+        }}
       />
       <div
         className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full opacity-[0.15] transition-all duration-700"
-        style={{ background: `radial-gradient(circle, ${accent} 0%, transparent 70%)` }}
+        style={{
+          background: `radial-gradient(circle, ${accent} 0%, transparent 70%)`,
+        }}
       />
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full opacity-10 transition-all duration-700"
-        style={{ background: `radial-gradient(ellipse, ${accent} 0%, transparent 70%)` }}
+        style={{
+          background: `radial-gradient(ellipse, ${accent} 0%, transparent 70%)`,
+        }}
       />
     </div>
   );
@@ -214,8 +232,8 @@ function PhotoProgress({ current, total }: { current: number; total: number }) {
             i < current
               ? "bg-primary w-6"
               : i === current
-              ? "bg-primary/50 w-4 animate-pulse"
-              : "bg-border w-4"
+                ? "bg-primary/50 w-4 animate-pulse"
+                : "bg-border w-4"
           }`}
         />
       ))}
@@ -229,8 +247,8 @@ const ROTATIONS = [-4, 3, -2, 5, -3, 2, -5, 4, -1];
 
 function PolaroidStrip({ thumbs, total }: { thumbs: string[]; total: number }) {
   return (
-    <div className="w-full max-w-2xl">
-      <div className="flex items-end justify-center gap-3 min-h-[140px]">
+    <div className="w-full max-w-2xl overflow-x-auto scrollbar-none px-2">
+      <div className="flex items-end justify-start sm:justify-center gap-3 min-h-[120px] sm:min-h-[140px] w-max sm:w-full mx-auto pb-2">
         {Array.from({ length: total }).map((_, i) => {
           const src = thumbs[i];
           const rot = ROTATIONS[i % ROTATIONS.length];
@@ -239,28 +257,35 @@ function PolaroidStrip({ thumbs, total }: { thumbs: string[]; total: number }) {
               key={i}
               className="relative flex-shrink-0"
               style={{
-                transform: src ? `rotate(${rot}deg)` : "rotate(0deg) translateY(16px)",
+                transform: src
+                  ? `rotate(${rot}deg)`
+                  : "rotate(0deg) translateY(16px)",
                 opacity: src ? 1 : 0,
-                animation: src ? "polaroid-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both" : "none",
+                animation: src
+                  ? "polaroid-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both"
+                  : "none",
               }}
             >
               {src ? (
                 <div
-                  className="bg-white p-2 pb-7 rounded-sm"
-                  style={{ boxShadow: "0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)" }}
+                  className="bg-white p-1.5 pb-6 sm:p-2 sm:pb-7 rounded-sm"
+                  style={{
+                    boxShadow:
+                      "0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)",
+                  }}
                 >
                   <img
                     src={src}
                     alt={`shot ${i + 1}`}
-                    className="w-20 h-16 object-cover block rounded-[2px]"
+                    className="w-16 h-12 sm:w-20 sm:h-16 object-cover block rounded-[2px]"
                   />
                   <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-medium text-muted-foreground tracking-widest">
                     #{i + 1}
                   </p>
                 </div>
               ) : (
-                <div className="bg-white/40 border-2 border-dashed border-border w-[88px] h-[104px] rounded-sm flex items-center justify-center">
-                  <div className="w-4 h-4 rounded-full border-2 border-border/60" />
+                <div className="bg-white/40 border-2 border-dashed border-border w-[72px] h-[90px] sm:w-[88px] sm:h-[104px] rounded-sm flex items-center justify-center">
+                  <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-border/60" />
                 </div>
               )}
             </div>
@@ -306,7 +331,9 @@ export default function PhotoBooth() {
           videoRef.current.onloadedmetadata = () => setCameraReady(true);
         }
       } catch (err) {
-        setCameraError(err instanceof Error ? err.message : "Camera access denied");
+        setCameraError(
+          err instanceof Error ? err.message : "Camera access denied",
+        );
       }
     };
     start();
@@ -322,21 +349,33 @@ export default function PhotoBooth() {
     async (photos: string[], theme: BoothTheme, effect: PhotoEffect) => {
       if (!canvasRef.current || photos.length === 0) return;
       setRerendering(true);
-      const result = await buildCollage(canvasRef.current, photos, layout.cols, theme, effect);
+      const result = await buildCollage(
+        canvasRef.current,
+        photos,
+        layout.cols,
+        theme,
+        effect,
+      );
       setCapturedImage(result);
       setRerendering(false);
     },
-    [layout.cols]
+    [layout.cols],
   );
 
   useEffect(() => {
-    if (rawPhotos.length > 0) rerenderCollage(rawPhotos, activeTheme, activeEffect);
+    if (rawPhotos.length > 0)
+      rerenderCollage(rawPhotos, activeTheme, activeEffect);
   }, [activeTheme, activeEffect, rawPhotos, rerenderCollage]);
 
   async function takePhotoSequence() {
     if (!videoRef.current) return;
     const effective = layout.cols * layout.rows;
-    trackBoothStarted({ layout_id: layout.id, photo_count: effective, cols: layout.cols, rows: layout.rows });
+    trackBoothStarted({
+      layout_id: layout.id,
+      photo_count: effective,
+      cols: layout.cols,
+      rows: layout.rows,
+    });
 
     setShooting(true);
     setShotCount(0);
@@ -358,10 +397,21 @@ export default function PhotoBooth() {
     }
 
     if (canvasRef.current && photos.length > 0) {
-      const result = await buildCollage(canvasRef.current, photos, layout.cols, activeTheme, activeEffect);
+      const result = await buildCollage(
+        canvasRef.current,
+        photos,
+        layout.cols,
+        activeTheme,
+        activeEffect,
+      );
       setRawPhotos(photos);
       setCapturedImage(result);
-      trackCollageCreated({ layout_id: layout.id, theme_id: activeTheme.id, effect_id: activeEffect.id, photo_count: photos.length });
+      trackCollageCreated({
+        layout_id: layout.id,
+        theme_id: activeTheme.id,
+        effect_id: activeEffect.id,
+        photo_count: photos.length,
+      });
     }
 
     setShooting(false);
@@ -387,7 +437,11 @@ export default function PhotoBooth() {
 
   function handleDownload() {
     if (!capturedImage) return;
-    trackCollageDownloaded({ theme_id: activeTheme.id, effect_id: activeEffect.id, layout_id: layout.id });
+    trackCollageDownloaded({
+      theme_id: activeTheme.id,
+      effect_id: activeEffect.id,
+      layout_id: layout.id,
+    });
     const link = document.createElement("a");
     link.href = capturedImage;
     link.download = "pika-booth.jpg";
@@ -407,23 +461,25 @@ export default function PhotoBooth() {
       <BlobBg accent={activeTheme.accent} />
 
       <div
-        className="min-h-dvh flex flex-col items-center px-4 py-10 gap-8"
+        className="min-h-dvh flex flex-col items-center px-4 py-6 sm:py-10 gap-4 sm:gap-8"
         style={{ "--primary": activeTheme.accent } as React.CSSProperties}
       >
         {/* Header */}
-        <header className="flex flex-col items-center gap-1 relative w-full max-w-2xl">
-          <h1 className="text-5xl text-primary font-display">
+        <header className="flex flex-col items-center gap-5 relative w-full max-w-2xl">
+          <h1 className="text-4xl sm:text-5xl text-primary font-display">
             pika
           </h1>
-          <p className="text-muted-foreground text-sm font-medium tracking-widest">
+          <p className="text-muted-foreground text-xs sm:text-sm font-medium tracking-widest">
             your cute photo booth ✦
           </p>
           {canInstall && (
             <button
               onClick={handleInstall}
-              className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-200 hover:scale-[1.04]"
+              className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-border bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-200 active:scale-[0.97]"
             >
-              <span>⬇︎</span> install app
+              <span>⬇︎</span>{" "}
+              <span className="hidden sm:inline">install app</span>
+              <span className="sm:hidden">install</span>
             </button>
           )}
         </header>
@@ -433,16 +489,20 @@ export default function PhotoBooth() {
           <div
             className="relative rounded-3xl overflow-hidden"
             style={{
-              boxShadow: shooting ? "var(--shadow-pink-lg)" : "var(--shadow-lg)",
+              boxShadow: shooting
+                ? "var(--shadow-pink-lg)"
+                : "var(--shadow-lg)",
               transition: "box-shadow 0.4s ease",
             }}
           >
             {cameraError ? (
-              <div className="w-full aspect-[4/3] bg-muted flex flex-col items-center justify-center gap-3 text-center p-8">
+              <div className="w-full aspect-[3/4] sm:aspect-[4/3] bg-muted flex flex-col items-center justify-center gap-3 text-center p-8">
                 <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
                   <Camera className="w-7 h-7 text-destructive" />
                 </div>
-                <p className="font-semibold text-destructive">Camera unavailable</p>
+                <p className="font-semibold text-destructive">
+                  Camera unavailable
+                </p>
                 <p className="text-sm text-muted-foreground">{cameraError}</p>
               </div>
             ) : (
@@ -461,7 +521,7 @@ export default function PhotoBooth() {
                   ref={videoRef}
                   autoPlay
                   playsInline
-                  className="w-full aspect-[4/3] object-cover bg-black scale-x-[-1]"
+                  className="w-full aspect-[3/4] sm:aspect-[4/3] object-cover bg-black scale-x-[-1]"
                 />
               </>
             )}
@@ -469,7 +529,10 @@ export default function PhotoBooth() {
             {flash && (
               <div
                 className="absolute inset-0 z-50 pointer-events-none"
-                style={{ background: "white", animation: "shutter-flash 0.35s ease-out forwards" }}
+                style={{
+                  background: "white",
+                  animation: "shutter-flash 0.35s ease-out forwards",
+                }}
               />
             )}
 
@@ -491,7 +554,7 @@ export default function PhotoBooth() {
 
         {/* Controls card */}
         <div className="w-full max-w-2xl">
-          <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-6 shadow-sm">
+          <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-4 sm:p-6 shadow-sm">
             {shooting ? (
               <div className="flex flex-col items-center gap-3 py-1">
                 <p className="text-sm font-medium text-muted-foreground">
@@ -502,7 +565,9 @@ export default function PhotoBooth() {
             ) : (
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-medium text-muted-foreground pl-0.5">choose layout</p>
+                  <p className="text-xs font-medium text-muted-foreground pl-0.5">
+                    choose layout
+                  </p>
                   <LayoutPicker active={layout.id} onChange={setLayout} />
                 </div>
 
@@ -516,7 +581,8 @@ export default function PhotoBooth() {
                   }}
                 >
                   <Camera className="w-4 h-4" />
-                  start booth · {effective} {effective === 1 ? "photo" : "photos"}
+                  start booth · {effective}{" "}
+                  {effective === 1 ? "photo" : "photos"}
                 </button>
               </div>
             )}
@@ -526,9 +592,11 @@ export default function PhotoBooth() {
         {/* Result */}
         {capturedImage && (
           <div className="w-full max-w-2xl animate-slide-up">
-            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-6 shadow-sm flex flex-col items-center gap-6">
+            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col items-center gap-5 sm:gap-6">
               <div className="flex flex-col items-center gap-2 text-center">
-                <p className="font-semibold text-base">your collage is ready! 🎀</p>
+                <p className="font-semibold text-base">
+                  your collage is ready! 🎀
+                </p>
                 <p className="text-xs text-muted-foreground">
                   pick a theme or effect, then download
                 </p>
@@ -536,8 +604,14 @@ export default function PhotoBooth() {
 
               {/* Theme + Effect pickers */}
               <div className="w-full flex flex-col gap-4">
-                <ThemePicker active={activeTheme.id} onChange={handleThemeChange} />
-                <EffectPicker active={activeEffect.id} onChange={handleEffectChange} />
+                <ThemePicker
+                  active={activeTheme.id}
+                  onChange={handleThemeChange}
+                />
+                <EffectPicker
+                  active={activeEffect.id}
+                  onChange={handleEffectChange}
+                />
               </div>
 
               {/* Preview */}
@@ -561,7 +635,7 @@ export default function PhotoBooth() {
               <div className="flex gap-3 w-full">
                 <button
                   onClick={handleDownload}
-                  className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]"
                   style={{
                     background: `linear-gradient(135deg, ${activeTheme.accent} 0%, ${activeTheme.frameColor} 100%)`,
                     boxShadow: `0 4px 14px ${activeTheme.accent}55`,
@@ -573,7 +647,7 @@ export default function PhotoBooth() {
 
                 <button
                   onClick={handleRetake}
-                  className="flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm border border-border bg-background hover:bg-accent text-foreground transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
+                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm border border-border bg-background hover:bg-accent text-foreground transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]"
                 >
                   <RefreshCw className="w-4 h-4" />
                   retake

@@ -18,16 +18,14 @@ export const LAYOUTS: LayoutTemplate[] = [
 
 export const DEFAULT_LAYOUT = LAYOUTS[2]; // quad
 
-function GridPreview({ cols, rows }: { cols: number; rows: number }) {
-  const cellW = cols === 1 ? 28 : cols === 2 ? 20 : 14;
-  const cellH = rows === 1 ? 28 : rows === 2 ? 20 : rows === 3 ? 14 : 10;
-  const gap = 3;
+function GridPreview({ cols, rows, small = false }: { cols: number; rows: number; small?: boolean }) {
+  const scale = small ? 0.75 : 1;
+  const cellW = Math.round((cols === 1 ? 24 : cols === 2 ? 18 : 12) * scale);
+  const cellH = Math.round((rows === 1 ? 24 : rows === 2 ? 18 : rows === 3 ? 12 : 9) * scale);
+  const gap = small ? 2 : 3;
 
   return (
-    <div
-      className="flex flex-col"
-      style={{ gap }}
-    >
+    <div className="flex flex-col" style={{ gap }}>
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex" style={{ gap }}>
           {Array.from({ length: cols }).map((_, c) => (
@@ -59,14 +57,14 @@ export default function LayoutPicker({ active, onChange }: Props) {
               key={layout.id}
               onClick={() => onChange(layout)}
               className={cn(
-                "flex flex-col items-center justify-center gap-2.5 py-4 px-2 rounded-2xl border transition-all duration-200 hover:scale-[1.04] active:scale-[0.97]",
+                "flex flex-col items-center justify-center gap-2 py-3 sm:py-4 px-1 sm:px-2 rounded-xl sm:rounded-2xl border transition-all duration-200 active:scale-[0.97] min-h-[72px] sm:min-h-[88px]",
                 isActive
                   ? "border-primary bg-primary/8 text-primary shadow-sm scale-[1.04]"
                   : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
               )}
             >
-              <GridPreview cols={layout.cols} rows={layout.rows} />
-              <span className="text-[11px] font-semibold leading-none">{layout.name}</span>
+              <GridPreview cols={layout.cols} rows={layout.rows} small />
+              <span className="text-[10px] sm:text-[11px] font-semibold leading-none">{layout.name}</span>
             </button>
           );
         })}
