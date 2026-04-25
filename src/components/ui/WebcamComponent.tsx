@@ -1,12 +1,6 @@
 import EffectPicker from "@/components/ui/EffectPicker";
+import LayoutPicker, { DEFAULT_LAYOUT, type LayoutTemplate } from "@/components/ui/LayoutPicker";
 import ThemePicker from "@/components/ui/ThemePicker";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import {
   DEFAULT_EFFECT,
   DEFAULT_THEME,
@@ -14,6 +8,7 @@ import {
   type PhotoEffect,
 } from "@/lib/themes";
 import { Camera, Download, RefreshCw, Sparkles } from "lucide-react";
+import { useInstallPrompt } from "@/lib/useInatallPrompt";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // ── Audio ─────────────────────────────────────────────────
@@ -74,10 +69,6 @@ function countdown(seconds: number, onTick: (n: number) => void): Promise<void> 
       }
     }, 1000);
   });
-}
-
-function clampPhotos(num: number, grid: number) {
-  return Math.min(num, grid * grid);
 }
 
 async function buildCollage(
@@ -287,8 +278,7 @@ export default function PhotoBooth() {
   const [thumbs, setThumbs] = useState<string[]>([]);
   const [rerendering, setRerendering] = useState(false);
 
-  const [numPhotos, setNumPhotos] = useState(4);
-  const [gridSize, setGridSize] = useState(2);
+  const [layout, setLayout] = useState<LayoutTemplate>(DEFAULT_LAYOUT);
 
   const [activeTheme, setActiveTheme] = useState<BoothTheme>(DEFAULT_THEME);
   const [activeEffect, setActiveEffect] = useState<PhotoEffect>(DEFAULT_EFFECT);
@@ -322,11 +312,11 @@ export default function PhotoBooth() {
     async (photos: string[], theme: BoothTheme, effect: PhotoEffect) => {
       if (!canvasRef.current || photos.length === 0) return;
       setRerendering(true);
-      const result = await buildCollage(canvasRef.current, photos, gridSize, theme, effect);
+      const result = await buildCollage(canvasRef.current, photos, layout.cols, theme, effect);
       setCapturedImage(result);
       setRerendering(false);
     },
-    [gridSize]
+    [layout.cols]
   );
 
   useEffect(() => {
@@ -335,7 +325,7 @@ export default function PhotoBooth() {
 
   async function takePhotoSequence() {
     if (!videoRef.current) return;
-    const effective = clampPhotos(numPhotos, gridSize);
+    const effective = layout.cols * layout.rows;
     setShooting(true);
     setShotCount(0);
     setCapturedImage(null);
@@ -355,7 +345,7 @@ export default function PhotoBooth() {
     }
 
     if (canvasRef.current && photos.length > 0) {
-      const result = await buildCollage(canvasRef.current, photos, gridSize, activeTheme, activeEffect);
+      const result = await buildCollage(canvasRef.current, photos, layout.cols, activeTheme, activeEffect);
       setRawPhotos(photos);
       setCapturedImage(result);
     }
@@ -370,7 +360,8 @@ export default function PhotoBooth() {
     setThumbs([]);
   }
 
-  const effective = clampPhotos(numPhotos, gridSize);
+  const effective = layout.cols * layout.rows;
+  const { canInstall, install } = useInstallPrompt();
 
   return (
     <>
@@ -381,13 +372,21 @@ export default function PhotoBooth() {
         style={{ "--primary": activeTheme.accent } as React.CSSProperties}
       >
         {/* Header */}
-        <header className="flex flex-col items-center gap-1">
+        <header className="flex flex-col items-center gap-1 relative w-full max-w-2xl">
           <h1 className="text-5xl text-primary font-display">
             pika
           </h1>
           <p className="text-muted-foreground text-sm font-medium tracking-widest">
             your cute photo booth ✦
           </p>
+          {canInstall && (
+            <button
+              onClick={install}
+              className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-200 hover:scale-[1.04]"
+            >
+              <span>⬇︎</span> install app
+            </button>
+          )}
         </header>
 
         {/* Camera card */}
@@ -462,51 +461,23 @@ export default function PhotoBooth() {
                 <PhotoProgress current={shotCount} total={effective} />
               </div>
             ) : (
-              <div className="flex flex-wrap gap-3 items-end justify-between">
-                <div className="flex gap-3 flex-wrap">
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground pl-0.5">
-                      photos
-                    </label>
-                    <Select onValueChange={(v) => setNumPhotos(parseInt(v))} defaultValue="4">
-                      <SelectTrigger className="w-[130px] rounded-xl border-border bg-background focus-visible:ring-primary/40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        <SelectItem value="2">2 photos</SelectItem>
-                        <SelectItem value="4">4 photos</SelectItem>
-                        <SelectItem value="9">9 photos</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-xs font-medium text-muted-foreground pl-0.5">
-                      grid
-                    </label>
-                    <Select onValueChange={(v) => setGridSize(parseInt(v))} defaultValue="2">
-                      <SelectTrigger className="w-[130px] rounded-xl border-border bg-background focus-visible:ring-primary/40">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="rounded-xl">
-                        <SelectItem value="2">2 × 2</SelectItem>
-                        <SelectItem value="3">3 × 3</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-xs font-medium text-muted-foreground pl-0.5">choose layout</p>
+                  <LayoutPicker active={layout.id} onChange={setLayout} />
                 </div>
 
                 <button
                   onClick={takePhotoSequence}
                   disabled={shooting || !!cameraError || !cameraReady}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] shimmer-btn"
+                  className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shimmer-btn"
                   style={{
                     background: `linear-gradient(135deg, ${activeTheme.accent} 0%, ${activeTheme.frameColor} 100%)`,
                     boxShadow: `0 4px 14px ${activeTheme.accent}55`,
                   }}
                 >
                   <Camera className="w-4 h-4" />
-                  start booth
+                  start booth · {effective} {effective === 1 ? "photo" : "photos"}
                 </button>
               </div>
             )}
