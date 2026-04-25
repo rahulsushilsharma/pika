@@ -22,7 +22,7 @@ export default defineConfig({
         name: "pika",
         short_name: "pika",
         description: "A ofline photo booth app",
-        theme_color: "#f59e0a",
+        theme_color: "#e8447a",
       },
 
       workbox: {
