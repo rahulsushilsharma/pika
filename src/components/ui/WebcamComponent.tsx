@@ -14,7 +14,7 @@ import {
   type PhotoEffect,
 } from "@/lib/themes";
 import { Camera, Download, RefreshCw, Sparkles } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 
 // ── Audio ─────────────────────────────────────────────────
 
@@ -190,7 +190,7 @@ function BlobBg({ accent }: { accent: string }) {
         style={{ background: `radial-gradient(circle, ${accent} 0%, transparent 70%)` }}
       />
       <div
-        className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full opacity-15 transition-all duration-700"
+        className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full opacity-[0.15] transition-all duration-700"
         style={{ background: `radial-gradient(circle, ${accent} 0%, transparent 70%)` }}
       />
       <div
@@ -229,7 +229,7 @@ const ROTATIONS = [-4, 3, -2, 5, -3, 2, -5, 4, -1];
 function PolaroidStrip({ thumbs, total }: { thumbs: string[]; total: number }) {
   return (
     <div className="w-full max-w-2xl">
-      <div className="flex items-end justify-center gap-3 px-4 min-h-[140px]">
+      <div className="flex items-end justify-center gap-3 min-h-[140px]">
         {Array.from({ length: total }).map((_, i) => {
           const src = thumbs[i];
           const rot = ROTATIONS[i % ROTATIONS.length];
@@ -253,7 +253,7 @@ function PolaroidStrip({ thumbs, total }: { thumbs: string[]; total: number }) {
                     alt={`shot ${i + 1}`}
                     className="w-20 h-16 object-cover block rounded-[2px]"
                   />
-                  <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-medium text-gray-400 tracking-widest">
+                  <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-medium text-muted-foreground tracking-widest">
                     #{i + 1}
                   </p>
                 </div>
@@ -382,13 +382,10 @@ export default function PhotoBooth() {
       >
         {/* Header */}
         <header className="flex flex-col items-center gap-1">
-          <h1
-            className="text-5xl text-primary"
-            style={{ fontFamily: "var(--font-display)", letterSpacing: "-0.01em" }}
-          >
+          <h1 className="text-5xl text-primary font-display">
             pika
           </h1>
-          <p className="text-muted-foreground text-sm font-medium tracking-wide">
+          <p className="text-muted-foreground text-sm font-medium tracking-widest">
             your cute photo booth ✦
           </p>
         </header>
@@ -403,7 +400,7 @@ export default function PhotoBooth() {
             }}
           >
             {cameraError ? (
-              <div className="w-full aspect-[4/3] bg-gradient-to-br from-pink-50 to-rose-100 flex flex-col items-center justify-center gap-3 text-center p-8">
+              <div className="w-full aspect-[4/3] bg-muted flex flex-col items-center justify-center gap-3 text-center p-8">
                 <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
                   <Camera className="w-7 h-7 text-destructive" />
                 </div>
@@ -413,7 +410,7 @@ export default function PhotoBooth() {
             ) : (
               <>
                 {!cameraReady && (
-                  <div className="absolute inset-0 z-10 bg-gradient-to-br from-pink-50 to-rose-100 flex items-center justify-center">
+                  <div className="absolute inset-0 z-10 bg-muted flex items-center justify-center">
                     <div className="flex flex-col items-center gap-3">
                       <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
                       <p className="text-sm text-muted-foreground font-medium">
@@ -456,7 +453,7 @@ export default function PhotoBooth() {
 
         {/* Controls card */}
         <div className="w-full max-w-2xl">
-          <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-5 shadow-sm">
+          <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-6 shadow-sm">
             {shooting ? (
               <div className="flex flex-col items-center gap-3 py-1">
                 <p className="text-sm font-medium text-muted-foreground">
@@ -505,7 +502,6 @@ export default function PhotoBooth() {
                   className="flex items-center gap-2 px-6 py-2.5 rounded-xl font-semibold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:scale-[1.03] active:scale-[0.98] shimmer-btn"
                   style={{
                     background: `linear-gradient(135deg, ${activeTheme.accent} 0%, ${activeTheme.frameColor} 100%)`,
-                    backgroundSize: "200% auto",
                     boxShadow: `0 4px 14px ${activeTheme.accent}55`,
                   }}
                 >
@@ -520,8 +516,8 @@ export default function PhotoBooth() {
         {/* Result */}
         {capturedImage && (
           <div className="w-full max-w-2xl animate-slide-up">
-            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-5 shadow-sm flex flex-col items-center gap-5">
-              <div className="flex flex-col items-center gap-1 text-center">
+            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-6 shadow-sm flex flex-col items-center gap-6">
+              <div className="flex flex-col items-center gap-2 text-center">
                 <p className="font-semibold text-base">your collage is ready! 🎀</p>
                 <p className="text-xs text-muted-foreground">
                   pick a theme or effect, then download
@@ -536,13 +532,13 @@ export default function PhotoBooth() {
 
               {/* Preview */}
               <div
-                className="rounded-2xl overflow-hidden animate-float relative"
+                className="rounded-2xl overflow-hidden relative w-full"
                 style={{ boxShadow: "var(--shadow-pink)" }}
               >
                 <img
                   src={capturedImage}
                   alt="Photo Booth Collage"
-                  className={`max-w-full max-h-[420px] object-contain block transition-opacity duration-300 ${rerendering ? "opacity-40" : "opacity-100"}`}
+                  className={`w-full object-contain block transition-opacity duration-300 ${rerendering ? "opacity-40" : "opacity-100"}`}
                 />
                 {rerendering && (
                   <div className="absolute inset-0 flex items-center justify-center">
@@ -584,7 +580,7 @@ export default function PhotoBooth() {
 
         <canvas ref={canvasRef} className="hidden" />
 
-        <footer className="mt-auto pt-4 text-xs text-muted-foreground/60 text-center">
+        <footer className="mt-auto text-xs text-muted-foreground/50 text-center">
           made with ♥ · pika photo booth
         </footer>
       </div>
