@@ -8,6 +8,16 @@ import {
   type PhotoEffect,
 } from "@/lib/themes";
 import { Camera, Download, RefreshCw, Sparkles } from "lucide-react";
+import {
+  trackAppInstalled,
+  trackBoothStarted,
+  trackCollageCreated,
+  trackCollageDownloaded,
+  trackEffectChanged,
+  trackPhotoCaptured,
+  trackRetake,
+  trackThemeChanged,
+} from "@/lib/firebase";
 import { useInstallPrompt } from "@/lib/useInatallPrompt";
 import React, { useCallback, useEffect, useRef, useState } from "react";
 
@@ -326,6 +336,8 @@ export default function PhotoBooth() {
   async function takePhotoSequence() {
     if (!videoRef.current) return;
     const effective = layout.cols * layout.rows;
+    trackBoothStarted({ layout_id: layout.id, photo_count: effective, cols: layout.cols, rows: layout.rows });
+
     setShooting(true);
     setShotCount(0);
     setCapturedImage(null);
@@ -342,12 +354,14 @@ export default function PhotoBooth() {
       if (captured) photos.push(captured);
       setThumbs((prev) => [...prev, captured]);
       setShotCount(i + 1);
+      trackPhotoCaptured({ shot_index: i, total: effective });
     }
 
     if (canvasRef.current && photos.length > 0) {
       const result = await buildCollage(canvasRef.current, photos, layout.cols, activeTheme, activeEffect);
       setRawPhotos(photos);
       setCapturedImage(result);
+      trackCollageCreated({ layout_id: layout.id, theme_id: activeTheme.id, effect_id: activeEffect.id, photo_count: photos.length });
     }
 
     setShooting(false);
@@ -355,9 +369,34 @@ export default function PhotoBooth() {
   }
 
   function handleRetake() {
+    trackRetake();
     setCapturedImage(null);
     setRawPhotos([]);
     setThumbs([]);
+  }
+
+  function handleThemeChange(theme: BoothTheme) {
+    trackThemeChanged({ theme_id: theme.id, theme_name: theme.name });
+    setActiveTheme(theme);
+  }
+
+  function handleEffectChange(effect: PhotoEffect) {
+    trackEffectChanged({ effect_id: effect.id, effect_name: effect.name });
+    setActiveEffect(effect);
+  }
+
+  function handleDownload() {
+    if (!capturedImage) return;
+    trackCollageDownloaded({ theme_id: activeTheme.id, effect_id: activeEffect.id, layout_id: layout.id });
+    const link = document.createElement("a");
+    link.href = capturedImage;
+    link.download = "pika-booth.jpg";
+    link.click();
+  }
+
+  async function handleInstall() {
+    const outcome = await install();
+    if (outcome === "accepted") trackAppInstalled();
   }
 
   const effective = layout.cols * layout.rows;
@@ -381,7 +420,7 @@ export default function PhotoBooth() {
           </p>
           {canInstall && (
             <button
-              onClick={install}
+              onClick={handleInstall}
               className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold border border-border bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-200 hover:scale-[1.04]"
             >
               <span>⬇︎</span> install app
@@ -497,8 +536,8 @@ export default function PhotoBooth() {
 
               {/* Theme + Effect pickers */}
               <div className="w-full flex flex-col gap-4">
-                <ThemePicker active={activeTheme.id} onChange={setActiveTheme} />
-                <EffectPicker active={activeEffect.id} onChange={setActiveEffect} />
+                <ThemePicker active={activeTheme.id} onChange={handleThemeChange} />
+                <EffectPicker active={activeEffect.id} onChange={handleEffectChange} />
               </div>
 
               {/* Preview */}
@@ -521,12 +560,7 @@ export default function PhotoBooth() {
               {/* Actions */}
               <div className="flex gap-3 w-full">
                 <button
-                  onClick={() => {
-                    const link = document.createElement("a");
-                    link.href = capturedImage;
-                    link.download = "pika-booth.jpg";
-                    link.click();
-                  }}
+                  onClick={handleDownload}
                   className="flex-1 flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.98]"
                   style={{
                     background: `linear-gradient(135deg, ${activeTheme.accent} 0%, ${activeTheme.frameColor} 100%)`,
