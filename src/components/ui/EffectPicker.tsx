@@ -1,12 +1,13 @@
 import { EFFECTS, type PhotoEffect } from "@/lib/themes";
 import { cn } from "@/lib/utils";
+import { memo } from "react";
 
 interface Props {
   active: string;
   onChange: (effect: PhotoEffect) => void;
 }
 
-export default function EffectPicker({ active, onChange }: Props) {
+export default memo(function EffectPicker({ active, onChange }: Props) {
   return (
     <div className="w-full">
       <p className="text-xs font-medium text-muted-foreground mb-2 pl-0.5">
@@ -31,4 +32,4 @@ export default function EffectPicker({ active, onChange }: Props) {
       </div>
     </div>
   );
-}
+});

@@ -1,12 +1,13 @@
 import { THEMES, type BoothTheme } from "@/lib/themes";
 import { cn } from "@/lib/utils";
+import { memo } from "react";
 
 interface Props {
   active: string;
   onChange: (theme: BoothTheme) => void;
 }
 
-export default function ThemePicker({ active, onChange }: Props) {
+export default memo(function ThemePicker({ active, onChange }: Props) {
   return (
     <div className="w-full">
       <p className="text-xs font-medium text-muted-foreground mb-2 pl-0.5">
@@ -31,4 +32,4 @@ export default function ThemePicker({ active, onChange }: Props) {
       </div>
     </div>
   );
-}
+});

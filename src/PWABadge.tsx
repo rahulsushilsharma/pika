@@ -78,24 +78,26 @@ export function PWABadge() {
 export default PWABadge;
 
 // 🔁 Helper function: periodic SW update check
+let syncInterval: ReturnType<typeof setInterval> | null = null;
+
 function registerPeriodicSync(
   period: number,
   swUrl: string,
   r: ServiceWorkerRegistration
 ) {
   if (period <= 0) return;
+  if (syncInterval) clearInterval(syncInterval);
 
-  setInterval(async () => {
+  syncInterval = setInterval(async () => {
     if ("onLine" in navigator && !navigator.onLine) return;
-
-    const resp = await fetch(swUrl, {
-      cache: "no-store",
-      headers: {
+    try {
+      const resp = await fetch(swUrl, {
         cache: "no-store",
-        "cache-control": "no-cache",
-      },
-    });
-
-    if (resp?.status === 200) await r.update();
+        headers: { "cache-control": "no-cache" },
+      });
+      if (resp?.status === 200) await r.update();
+    } catch {
+      // network unavailable — skip this cycle
+    }
   }, period);
 }

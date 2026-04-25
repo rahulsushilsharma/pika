@@ -18,7 +18,6 @@ export function useInstallPrompt() {
       const event = e as BeforeInstallPromptEvent;
       event.preventDefault();
       setDeferredPrompt(event);
-      console.log("beforeinstallprompt event captured");
     };
 
     window.addEventListener("beforeinstallprompt", handler);

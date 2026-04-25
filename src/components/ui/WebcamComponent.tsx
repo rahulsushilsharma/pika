@@ -27,8 +27,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 // ── Audio ─────────────────────────────────────────────────
 
 function playShutterSound() {
+  let ctx: AudioContext | undefined;
   try {
-    const ctx = new AudioContext();
+    ctx = new AudioContext();
     const bufferSize = ctx.sampleRate * 0.08;
     const buffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
     const data = buffer.getChannelData(0);
@@ -50,9 +51,9 @@ function playShutterSound() {
     gain.connect(ctx.destination);
     noise.start();
     noise.stop(ctx.currentTime + 0.08);
-    noise.onended = () => ctx.close();
+    noise.onended = () => ctx?.close();
   } catch {
-    // silent fail
+    ctx?.close();
   }
 }
 
@@ -301,6 +302,8 @@ function PolaroidStrip({ thumbs, total }: { thumbs: string[]; total: number }) {
 export default function PhotoBooth() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const shootingRef = useRef(false);
+  const flashTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [timer, setTimer] = useState(0);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
@@ -339,8 +342,11 @@ export default function PhotoBooth() {
     start();
     const video = videoRef.current;
     return () => {
-      if (video?.srcObject)
+      if (video?.srcObject) {
         (video.srcObject as MediaStream).getTracks().forEach((t) => t.stop());
+        video.srcObject = null;
+      }
+      if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
     };
   }, []);
 
@@ -349,17 +355,16 @@ export default function PhotoBooth() {
     async (photos: string[], theme: BoothTheme, effect: PhotoEffect) => {
       if (!canvasRef.current || photos.length === 0) return;
       setRerendering(true);
-      const result = await buildCollage(
-        canvasRef.current,
-        photos,
-        layout.cols,
-        theme,
-        effect,
-      );
-      setCapturedImage(result);
-      setRerendering(false);
+      try {
+        const result = await buildCollage(canvasRef.current, photos, layout.cols, theme, effect);
+        setCapturedImage(result);
+      } catch (e) {
+        console.error("Failed to render collage:", e);
+      } finally {
+        setRerendering(false);
+      }
     },
-    [layout.cols],
+    [layout],
   );
 
   useEffect(() => {
@@ -368,14 +373,11 @@ export default function PhotoBooth() {
   }, [activeTheme, activeEffect, rawPhotos, rerenderCollage]);
 
   async function takePhotoSequence() {
-    if (!videoRef.current) return;
+    if (!videoRef.current || shootingRef.current) return;
+    shootingRef.current = true;
+
     const effective = layout.cols * layout.rows;
-    trackBoothStarted({
-      layout_id: layout.id,
-      photo_count: effective,
-      cols: layout.cols,
-      rows: layout.rows,
-    });
+    trackBoothStarted({ layout_id: layout.id, photo_count: effective, cols: layout.cols, rows: layout.rows });
 
     setShooting(true);
     setShotCount(0);
@@ -384,38 +386,33 @@ export default function PhotoBooth() {
     setThumbs([]);
     const photos: string[] = [];
 
-    for (let i = 0; i < effective; i++) {
-      await countdown(3, setTimer);
-      playShutterSound();
-      setFlash(true);
-      setTimeout(() => setFlash(false), 350);
-      const captured = videoRef.current ? captureFrame(videoRef.current) : "";
-      if (captured) photos.push(captured);
-      setThumbs((prev) => [...prev, captured]);
-      setShotCount(i + 1);
-      trackPhotoCaptured({ shot_index: i, total: effective });
-    }
+    try {
+      for (let i = 0; i < effective; i++) {
+        await countdown(3, setTimer);
+        playShutterSound();
+        setFlash(true);
+        if (flashTimeoutRef.current) clearTimeout(flashTimeoutRef.current);
+        flashTimeoutRef.current = setTimeout(() => setFlash(false), 350);
+        const captured = videoRef.current ? captureFrame(videoRef.current) : "";
+        if (captured) photos.push(captured);
+        setThumbs((prev) => [...prev, captured]);
+        setShotCount(i + 1);
+        trackPhotoCaptured({ shot_index: i, total: effective });
+      }
 
-    if (canvasRef.current && photos.length > 0) {
-      const result = await buildCollage(
-        canvasRef.current,
-        photos,
-        layout.cols,
-        activeTheme,
-        activeEffect,
-      );
-      setRawPhotos(photos);
-      setCapturedImage(result);
-      trackCollageCreated({
-        layout_id: layout.id,
-        theme_id: activeTheme.id,
-        effect_id: activeEffect.id,
-        photo_count: photos.length,
-      });
+      if (canvasRef.current && photos.length > 0) {
+        const result = await buildCollage(canvasRef.current, photos, layout.cols, activeTheme, activeEffect);
+        setRawPhotos(photos);
+        setCapturedImage(result);
+        trackCollageCreated({ layout_id: layout.id, theme_id: activeTheme.id, effect_id: activeEffect.id, photo_count: photos.length });
+      }
+    } catch (e) {
+      console.error("Photo sequence failed:", e);
+    } finally {
+      setShooting(false);
+      setShotCount(0);
+      shootingRef.current = false;
     }
-
-    setShooting(false);
-    setShotCount(0);
   }
 
   function handleRetake() {
@@ -449,8 +446,12 @@ export default function PhotoBooth() {
   }
 
   async function handleInstall() {
-    const outcome = await install();
-    if (outcome === "accepted") trackAppInstalled();
+    try {
+      const outcome = await install();
+      if (outcome === "accepted") trackAppInstalled();
+    } catch (e) {
+      console.error("PWA install failed:", e);
+    }
   }
 
   const effective = layout.cols * layout.rows;
