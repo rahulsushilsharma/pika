@@ -56,15 +56,16 @@ export default function LayoutPicker({ active, onChange }: Props) {
             <button
               key={layout.id}
               onClick={() => onChange(layout)}
+              aria-pressed={isActive}
               className={cn(
-                "flex flex-col items-center justify-center gap-2 py-3 sm:py-4 px-1 sm:px-2 rounded-xl sm:rounded-2xl border transition-all duration-200 active:scale-[0.97] min-h-[72px] sm:min-h-[88px]",
+                "flex flex-col items-center justify-center gap-2 py-3 sm:py-4 px-1 sm:px-2 rounded-2xl border-2 transition-transform duration-150 active:scale-[0.95] min-h-[72px] sm:min-h-[88px]",
                 isActive
-                  ? "border-primary bg-primary/8 text-primary shadow-sm scale-[1.04]"
-                  : "border-border bg-background text-muted-foreground hover:border-primary/30 hover:text-foreground"
+                  ? "border-ink bg-ginger/25 text-ink -translate-y-0.5"
+                  : "border-border bg-card text-muted-foreground hover:border-ink/40 hover:text-ink"
               )}
             >
               <GridPreview cols={layout.cols} rows={layout.rows} small />
-              <span className="text-[10px] sm:text-[11px] font-semibold leading-none">{layout.name}</span>
+              <span className="text-[11px] sm:text-xs font-bold leading-none">{layout.name}</span>
             </button>
           );
         })}

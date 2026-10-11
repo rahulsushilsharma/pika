@@ -1,3 +1,4 @@
+import Cat, { Paw, type CatMood } from "@/components/ui/Cat";
 import EffectPicker from "@/components/ui/EffectPicker";
 import LayoutPicker, {
   DEFAULT_LAYOUT,
@@ -10,19 +11,20 @@ import {
   type BoothTheme,
   type PhotoEffect,
 } from "@/lib/themes";
-import { Camera, Download, RefreshCw, Sparkles } from "lucide-react";
+import { Camera, Download, RefreshCw, Share2 } from "lucide-react";
 import {
   trackAppInstalled,
   trackBoothStarted,
   trackCollageCreated,
   trackCollageDownloaded,
+  trackCollageShared,
   trackEffectChanged,
   trackPhotoCaptured,
   trackRetake,
   trackThemeChanged,
 } from "@/lib/firebase";
 import { useInstallPrompt } from "@/lib/useInatallPrompt";
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 // ── Audio ─────────────────────────────────────────────────
 
@@ -114,10 +116,16 @@ async function buildCollage(
   const imgH = loaded[0].height;
   const cols = gridSize;
   const rows = Math.ceil(loaded.length / cols);
-  const { padding, gap, frameColor, frameWidth } = theme;
+  // theme sizes are tuned for a 640px-wide shot; scale for HD webcams
+  const s = imgW / 640;
+  const padding = theme.padding * s;
+  const gap = theme.gap * s;
+  const frameWidth = theme.frameWidth * s;
+  const { frameColor } = theme;
+  const bandH = 96 * s;
 
   canvas.width = cols * imgW + (cols - 1) * gap + padding * 2;
-  canvas.height = rows * imgH + (rows - 1) * gap + padding * 2;
+  canvas.height = rows * imgH + (rows - 1) * gap + padding * 2 + bandH;
 
   // Background
   if (theme.backgroundGradient) {
@@ -151,9 +159,79 @@ async function buildCollage(
       imgH + frameWidth,
     );
     ctx.restore();
+    theme.decorate?.(ctx, x, y, imgW, imgH, i, s);
   });
 
+  await drawWatermark(ctx, canvas.width, canvas.height - bandH - padding / 2, bandH, s, isDark(theme.backgroundColor));
+
   return canvas.toDataURL("image/jpeg", 0.92);
+}
+
+function isDark(hex: string) {
+  const n = parseInt(hex.slice(1), 16);
+  return 0.299 * (n >> 16) + 0.587 * ((n >> 8) & 255) + 0.114 * (n & 255) < 128;
+}
+
+/** Brand band under the photos: cat face + "pika" left, date + url right. */
+async function drawWatermark(
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  top: number,
+  height: number,
+  s: number,
+  dark: boolean,
+) {
+  await Promise.all([
+    document.fonts.load(`800 ${44 * s}px Sniglet`),
+    document.fonts.load(`700 ${18 * s}px "M PLUS Rounded 1c"`),
+  ]).catch(() => {});
+
+  const ink = dark ? "#ffffff" : "#2e2240";
+  const pad = 56 * s;
+  const mid = top + height / 2;
+
+  // cat face
+  const r = 22 * s;
+  const cx = pad + r;
+  ctx.save();
+  ctx.fillStyle = "#ffa94d";
+  ctx.strokeStyle = "#2e2240";
+  ctx.lineWidth = 3 * s;
+  ctx.lineJoin = "round";
+  ctx.beginPath();
+  ctx.moveTo(cx - r * 0.95, mid - r * 0.2);
+  ctx.lineTo(cx - r * 0.85, mid - r * 1.35);
+  ctx.lineTo(cx - r * 0.2, mid - r * 0.85);
+  ctx.lineTo(cx + r * 0.2, mid - r * 0.85);
+  ctx.lineTo(cx + r * 0.85, mid - r * 1.35);
+  ctx.lineTo(cx + r * 0.95, mid - r * 0.2);
+  ctx.closePath();
+  ctx.fill();
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.ellipse(cx, mid, r * 1.1, r * 0.9, 0, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.stroke();
+  ctx.fillStyle = "#2e2240";
+  for (const ex of [-0.4, 0.4]) {
+    ctx.beginPath();
+    ctx.ellipse(cx + ex * r, mid - r * 0.05, r * 0.11, r * 0.15, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  ctx.fillStyle = ink;
+  ctx.textBaseline = "middle";
+  ctx.font = `800 ${44 * s}px Sniglet, sans-serif`;
+  ctx.fillText("pika", cx + r * 1.6, mid + 2 * s);
+
+  ctx.textAlign = "right";
+  ctx.font = `700 ${18 * s}px "M PLUS Rounded 1c", sans-serif`;
+  const date = new Date().toLocaleDateString(undefined, { day: "numeric", month: "short", year: "numeric" });
+  ctx.globalAlpha = 0.75;
+  ctx.fillText(date, width - pad, mid - 12 * s);
+  ctx.globalAlpha = 1;
+  ctx.fillText("pika.rahulsharma.app", width - pad, mid + 13 * s);
+  ctx.restore();
 }
 
 // ── Timer Overlay ─────────────────────────────────────────
@@ -172,70 +250,42 @@ function TimerOverlay({ timer }: { timer: number }) {
   if (!visible) return null;
 
   return (
-    <div className="absolute inset-0 flex flex-col items-center justify-center z-50 rounded-3xl overflow-hidden">
-      <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px]" />
-      <span
-        className="animate-countdown relative z-10 text-white font-black select-none"
-        style={{
-          fontSize: "clamp(6rem, 20vw, 10rem)",
-          textShadow:
-            "0 0 40px oklch(0.65 0.22 0 / 0.8), 0 0 80px oklch(0.65 0.22 0 / 0.4)",
-        }}
-      >
-        {visible}
-      </span>
-      <p className="relative z-10 text-white/80 text-lg font-medium mt-2 tracking-wide animate-pulse">
-        get ready ✨
+    <div className="absolute inset-0 flex flex-col items-center justify-center z-50 overflow-hidden">
+      <div className="absolute inset-0 bg-ink/25" />
+      <div key={visible} className="animate-countdown relative z-10 text-white drop-shadow-[0_4px_0_var(--ink)]">
+        <Paw size={180} className="w-36 h-36 sm:w-44 sm:h-44">
+          <text
+            x="50"
+            y="70"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fill="var(--ink)"
+            fontFamily="Sniglet"
+            fontWeight="800"
+            fontSize="34"
+          >
+            {visible}
+          </text>
+        </Paw>
+      </div>
+      <p className="relative z-10 text-white text-xl font-display mt-1 drop-shadow-[0_2px_0_var(--ink)]">
+        say cheese
       </p>
     </div>
   );
 }
 
-// ── Decorative blobs ──────────────────────────────────────
-
-function BlobBg({ accent }: { accent: string }) {
-  return (
-    <div
-      className="fixed inset-0 -z-10 overflow-hidden pointer-events-none"
-      aria-hidden
-    >
-      <div
-        className="absolute -top-32 -left-32 w-[600px] h-[600px] rounded-full opacity-20 transition-all duration-700"
-        style={{
-          background: `radial-gradient(circle, ${accent} 0%, transparent 70%)`,
-        }}
-      />
-      <div
-        className="absolute -bottom-32 -right-32 w-[500px] h-[500px] rounded-full opacity-[0.15] transition-all duration-700"
-        style={{
-          background: `radial-gradient(circle, ${accent} 0%, transparent 70%)`,
-        }}
-      />
-      <div
-        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[400px] rounded-full opacity-10 transition-all duration-700"
-        style={{
-          background: `radial-gradient(ellipse, ${accent} 0%, transparent 70%)`,
-        }}
-      />
-    </div>
-  );
-}
-
-// ── Progress dots ─────────────────────────────────────────
+// ── Progress paws ─────────────────────────────────────────
 
 function PhotoProgress({ current, total }: { current: number; total: number }) {
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 text-ginger" role="progressbar" aria-valuenow={current} aria-valuemax={total}>
       {Array.from({ length: total }).map((_, i) => (
-        <div
+        <Paw
           key={i}
-          className={`h-2 rounded-full transition-all duration-500 ${
-            i < current
-              ? "bg-primary w-6"
-              : i === current
-                ? "bg-primary/50 w-4 animate-pulse"
-                : "bg-border w-4"
-          }`}
+          size={18}
+          filled={i < current}
+          className={i === current ? "animate-paw text-ink" : i < current ? "" : "text-border"}
         />
       ))}
     </div>
@@ -249,50 +299,39 @@ const ROTATIONS = [-4, 3, -2, 5, -3, 2, -5, 4, -1];
 function PolaroidStrip({ thumbs, total }: { thumbs: string[]; total: number }) {
   return (
     <div className="w-full max-w-2xl overflow-x-auto scrollbar-none px-2">
-      <div className="flex items-end justify-start sm:justify-center gap-3 min-h-[120px] sm:min-h-[140px] w-max sm:w-full mx-auto pb-2">
+      <ol className="flex items-end justify-start sm:justify-center gap-3 w-max sm:w-full mx-auto py-2">
         {Array.from({ length: total }).map((_, i) => {
           const src = thumbs[i];
-          const rot = ROTATIONS[i % ROTATIONS.length];
           return (
-            <div
+            <li
               key={i}
-              className="relative flex-shrink-0"
-              style={{
-                transform: src
-                  ? `rotate(${rot}deg)`
-                  : "rotate(0deg) translateY(16px)",
-                opacity: src ? 1 : 0,
-                animation: src
-                  ? "polaroid-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both"
-                  : "none",
-              }}
+              className="shrink-0"
+              style={
+                src
+                  ? {
+                      transform: `rotate(${ROTATIONS[i % ROTATIONS.length]}deg)`,
+                      animation: "polaroid-pop 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both",
+                    }
+                  : undefined
+              }
             >
               {src ? (
-                <div
-                  className="bg-white p-1.5 pb-6 sm:p-2 sm:pb-7 rounded-sm"
-                  style={{
-                    boxShadow:
-                      "0 4px 12px rgba(0,0,0,0.18), 0 1px 3px rgba(0,0,0,0.12)",
-                  }}
-                >
+                <div className="bg-white p-1.5 pb-5 sm:p-2 sm:pb-6 rounded-md border-2 border-ink shadow-[0_3px_0_var(--ink)]">
                   <img
                     src={src}
-                    alt={`shot ${i + 1}`}
-                    className="w-16 h-12 sm:w-20 sm:h-16 object-cover block rounded-[2px]"
+                    alt={`Shot ${i + 1}`}
+                    className="w-16 h-12 sm:w-20 sm:h-16 object-cover block rounded-sm"
                   />
-                  <p className="absolute bottom-1.5 left-0 right-0 text-center text-[9px] font-medium text-muted-foreground tracking-widest">
-                    #{i + 1}
-                  </p>
                 </div>
               ) : (
-                <div className="bg-white/40 border-2 border-dashed border-border w-[72px] h-[90px] sm:w-[88px] sm:h-[104px] rounded-sm flex items-center justify-center">
-                  <div className="w-3 h-3 sm:w-4 sm:h-4 rounded-full border-2 border-border/60" />
+                <div className="w-[80px] h-[78px] sm:w-[100px] sm:h-[100px] rounded-md border-2 border-dashed border-ink/25 flex items-center justify-center text-ink/20">
+                  <Paw size={18} />
                 </div>
               )}
-            </div>
+            </li>
           );
         })}
-      </div>
+      </ol>
     </div>
   );
 }
@@ -445,6 +484,19 @@ export default function PhotoBooth() {
     link.click();
   }
 
+  async function handleShare() {
+    if (!capturedImage) return;
+    const blob = await (await fetch(capturedImage)).blob();
+    const file = new File([blob], "pika-booth.jpg", { type: "image/jpeg" });
+    if (!navigator.canShare?.({ files: [file] })) return handleDownload();
+    try {
+      await navigator.share({ files: [file], text: "made with pika 🐱 pika.rahulsharma.app" });
+      trackCollageShared({ theme_id: activeTheme.id, effect_id: activeEffect.id, layout_id: layout.id });
+    } catch (e) {
+      if ((e as Error).name !== "AbortError") handleDownload();
+    }
+  }
+
   async function handleInstall() {
     try {
       const outcome = await install();
@@ -456,214 +508,166 @@ export default function PhotoBooth() {
 
   const effective = layout.cols * layout.rows;
   const { canInstall, install } = useInstallPrompt();
+  const catMood: CatMood = flash ? "snap" : shooting ? "count" : capturedImage ? "done" : "idle";
 
   return (
-    <>
-      <BlobBg accent={activeTheme.accent} />
-
-      <div
-        className="min-h-dvh flex flex-col items-center px-4 py-6 sm:py-10 gap-4 sm:gap-8"
-        style={{ "--primary": activeTheme.accent } as React.CSSProperties}
-      >
-        {/* Header */}
-        <header className="flex flex-col items-center gap-5 relative w-full max-w-2xl">
-          <h1 className="text-4xl sm:text-5xl text-primary font-display">
-            pika
-          </h1>
-          <p className="text-muted-foreground text-xs sm:text-sm font-medium tracking-widest">
-            your cute photo booth ✦
-          </p>
-          {canInstall && (
-            <button
-              onClick={handleInstall}
-              className="absolute right-0 top-1/2 -translate-y-1/2 flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-border bg-card/80 backdrop-blur-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-all duration-200 active:scale-[0.97]"
-            >
-              <span>⬇︎</span>{" "}
-              <span className="hidden sm:inline">install app</span>
-              <span className="sm:hidden">install</span>
-            </button>
-          )}
-        </header>
-
-        {/* Camera card */}
-        <div className="w-full max-w-2xl">
-          <div
-            className="relative rounded-3xl overflow-hidden"
-            style={{
-              boxShadow: shooting
-                ? "var(--shadow-pink-lg)"
-                : "var(--shadow-lg)",
-              transition: "box-shadow 0.4s ease",
-            }}
+    <div className="min-h-dvh flex flex-col items-center px-4 py-6 sm:py-10 gap-5 sm:gap-8">
+      {/* Header */}
+      <header className="flex flex-col items-center gap-1 relative w-full max-w-2xl">
+        <h1 className="text-5xl sm:text-6xl font-display font-extrabold tracking-tight">pika</h1>
+        <p className="text-muted-foreground text-sm font-bold">your tiny cat photo booth</p>
+        {canInstall && (
+          <button
+            onClick={handleInstall}
+            className="absolute right-0 top-1/2 -translate-y-1/2 px-3 py-1.5 rounded-full text-xs font-bold bg-card btn-sticker"
           >
-            {cameraError ? (
-              <div className="w-full aspect-[3/4] sm:aspect-[4/3] bg-muted flex flex-col items-center justify-center gap-3 text-center p-8">
-                <div className="w-14 h-14 rounded-full bg-destructive/10 flex items-center justify-center">
-                  <Camera className="w-7 h-7 text-destructive" />
-                </div>
-                <p className="font-semibold text-destructive">
-                  Camera unavailable
-                </p>
-                <p className="text-sm text-muted-foreground">{cameraError}</p>
-              </div>
-            ) : (
-              <>
-                {!cameraReady && (
-                  <div className="absolute inset-0 z-10 bg-muted flex items-center justify-center">
-                    <div className="flex flex-col items-center gap-3">
-                      <div className="w-10 h-10 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                      <p className="text-sm text-muted-foreground font-medium">
-                        starting camera…
-                      </p>
-                    </div>
-                  </div>
-                )}
-                <video
-                  ref={videoRef}
-                  autoPlay
-                  playsInline
-                  className="w-full aspect-[3/4] sm:aspect-[4/3] object-cover bg-black scale-x-[-1]"
-                />
-              </>
-            )}
-
-            {flash && (
-              <div
-                className="absolute inset-0 z-50 pointer-events-none"
-                style={{
-                  background: "white",
-                  animation: "shutter-flash 0.35s ease-out forwards",
-                }}
-              />
-            )}
-
-            <TimerOverlay timer={timer} />
-
-            {shooting && (
-              <div className="absolute top-4 right-4 z-40 bg-black/60 backdrop-blur-sm text-white text-sm font-semibold px-3 py-1.5 rounded-full flex items-center gap-2">
-                <Sparkles className="w-3.5 h-3.5 text-primary" />
-                {shotCount + 1} / {effective}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Polaroid strip */}
-        {(shooting || (thumbs.length > 0 && !capturedImage)) && (
-          <PolaroidStrip thumbs={thumbs} total={effective} />
+            install
+          </button>
         )}
+      </header>
 
-        {/* Controls card */}
-        <div className="w-full max-w-2xl">
-          <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-4 sm:p-6 shadow-sm">
-            {shooting ? (
-              <div className="flex flex-col items-center gap-3 py-1">
-                <p className="text-sm font-medium text-muted-foreground">
-                  shooting sequence
-                </p>
-                <PhotoProgress current={shotCount} total={effective} />
-              </div>
-            ) : (
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <p className="text-xs font-medium text-muted-foreground pl-0.5">
-                    choose layout
-                  </p>
-                  <LayoutPicker active={layout.id} onChange={setLayout} />
-                </div>
-
-                <button
-                  onClick={takePhotoSequence}
-                  disabled={shooting || !!cameraError || !cameraReady}
-                  className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold text-sm text-white disabled:opacity-40 disabled:cursor-not-allowed transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] shimmer-btn"
-                  style={{
-                    background: `linear-gradient(135deg, ${activeTheme.accent} 0%, ${activeTheme.frameColor} 100%)`,
-                    boxShadow: `0 4px 14px ${activeTheme.accent}55`,
-                  }}
-                >
-                  <Camera className="w-4 h-4" />
-                  start booth · {effective}{" "}
-                  {effective === 1 ? "photo" : "photos"}
-                </button>
-              </div>
-            )}
-          </div>
+      {/* Stage: the camera, or the finished strip. The cat sits on whichever is showing. */}
+      <main className={`w-full relative mt-14 sm:mt-16 ${capturedImage ? "max-w-4xl" : "max-w-2xl"}`}>
+        <div className="absolute left-5 sm:left-8 bottom-full -mb-[7px] z-20">
+          <Cat mood={catMood} tick={timer} />
         </div>
 
-        {/* Result */}
+        {/* video stays mounted while the result shows, so retake is instant */}
+        <div className={`relative rounded-[28px] overflow-hidden border-[3px] border-ink bg-ink ${capturedImage ? "hidden" : ""}`}>
+          {cameraError ? (
+            <div className="w-full aspect-[3/4] sm:aspect-[4/3] bg-muted flex flex-col items-center justify-center gap-3 text-center p-8">
+              <Camera className="w-8 h-8 text-destructive" />
+              <p className="font-bold">The camera is blocked</p>
+              <p className="text-sm text-muted-foreground max-w-xs text-pretty">
+                Allow camera access in your browser&apos;s site settings, then reload the page. ({cameraError})
+              </p>
+            </div>
+          ) : (
+            <>
+              {!cameraReady && (
+                <div className="absolute inset-0 z-10 bg-muted flex flex-col items-center justify-center gap-3 text-ink">
+                  <Paw size={28} className="animate-paw" />
+                  <p className="text-sm font-bold text-muted-foreground">waking up the camera…</p>
+                </div>
+              )}
+              <video
+                ref={videoRef}
+                autoPlay
+                playsInline
+                muted
+                className="w-full aspect-[3/4] sm:aspect-[4/3] object-cover bg-ink scale-x-[-1] block"
+              />
+            </>
+          )}
+
+          {flash && (
+            <div
+              className="absolute inset-0 z-50 pointer-events-none bg-white"
+              style={{ animation: "shutter-flash 0.35s ease-out forwards" }}
+            />
+          )}
+
+          <TimerOverlay timer={timer} />
+
+          {shooting && (
+            <div className="absolute top-4 right-4 z-40 bg-card text-ink text-sm font-bold px-3 py-1 rounded-full border-2 border-ink tabular-nums">
+              {shotCount + 1} of {effective}
+            </div>
+          )}
+        </div>
+
         {capturedImage && (
-          <div className="w-full max-w-2xl animate-slide-up">
-            <div className="bg-card/80 backdrop-blur-md border border-border rounded-2xl p-4 sm:p-6 shadow-sm flex flex-col items-center gap-5 sm:gap-6">
-              <div className="flex flex-col items-center gap-2 text-center">
-                <p className="font-semibold text-base">
-                  your collage is ready! 🎀
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  pick a theme or effect, then download
-                </p>
+          <div className="animate-slide-up bg-card border-[3px] border-ink rounded-[28px] p-4 sm:p-6 grid gap-5 sm:gap-7 sm:grid-cols-[minmax(0,1.35fr)_minmax(0,1fr)] sm:items-start">
+            <div className="relative rounded-2xl overflow-hidden border-2 border-ink bg-muted">
+              <img
+                src={capturedImage}
+                alt="Your photo strip"
+                className={`w-full object-contain block transition-opacity duration-300 ${rerendering ? "opacity-40" : "opacity-100"}`}
+              />
+              {rerendering && (
+                <div className="absolute inset-0 flex items-center justify-center text-ink">
+                  <Paw size={32} className="animate-paw" />
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col gap-5 min-w-0">
+              <div>
+                <h2 className="font-display font-extrabold text-3xl leading-none tracking-tight">your strip is ready</h2>
+                <p className="text-sm text-muted-foreground mt-2 text-pretty">Try a frame or an effect, then send it to someone.</p>
               </div>
 
-              {/* Theme + Effect pickers */}
-              <div className="w-full flex flex-col gap-4">
-                <ThemePicker
-                  active={activeTheme.id}
-                  onChange={handleThemeChange}
-                />
-                <EffectPicker
-                  active={activeEffect.id}
-                  onChange={handleEffectChange}
-                />
-              </div>
-
-              {/* Preview */}
-              <div
-                className="rounded-2xl overflow-hidden relative w-full"
-                style={{ boxShadow: "var(--shadow-pink)" }}
-              >
-                <img
-                  src={capturedImage}
-                  alt="Photo Booth Collage"
-                  className={`w-full object-contain block transition-opacity duration-300 ${rerendering ? "opacity-40" : "opacity-100"}`}
-                />
-                {rerendering && (
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <div className="w-8 h-8 rounded-full border-4 border-primary border-t-transparent animate-spin" />
-                  </div>
-                )}
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 w-full">
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={handleShare}
+                  className="btn-sticker basis-full flex items-center justify-center gap-2 px-5 py-3 rounded-2xl font-display font-extrabold text-lg bg-ginger text-ink"
+                >
+                  <Share2 className="w-5 h-5" strokeWidth={2.5} />
+                  share
+                </button>
                 <button
                   onClick={handleDownload}
-                  className="flex-1 flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm text-white transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]"
-                  style={{
-                    background: `linear-gradient(135deg, ${activeTheme.accent} 0%, ${activeTheme.frameColor} 100%)`,
-                    boxShadow: `0 4px 14px ${activeTheme.accent}55`,
-                  }}
+                  className="btn-sticker flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-card"
                 >
-                  <Download className="w-4 h-4" />
-                  download
+                  <Download className="w-4 h-4" strokeWidth={2.5} />
+                  save
                 </button>
-
                 <button
                   onClick={handleRetake}
-                  className="flex items-center justify-center gap-2 px-5 py-3 rounded-xl font-semibold text-sm border border-border bg-background hover:bg-accent text-foreground transition-all duration-200 hover:scale-[1.02] active:scale-[0.97]"
+                  className="btn-sticker flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl font-bold text-sm bg-card"
                 >
-                  <RefreshCw className="w-4 h-4" />
+                  <RefreshCw className="w-4 h-4" strokeWidth={2.5} />
                   retake
                 </button>
+              </div>
+
+              <div className="flex flex-col gap-4 pt-4 border-t-2 border-dashed border-border">
+                <ThemePicker active={activeTheme.id} onChange={handleThemeChange} />
+                <EffectPicker active={activeEffect.id} onChange={handleEffectChange} />
               </div>
             </div>
           </div>
         )}
+      </main>
 
-        <canvas ref={canvasRef} className="hidden" />
+      {/* Polaroid strip */}
+      {(shooting || (thumbs.length > 0 && !capturedImage)) && (
+        <PolaroidStrip thumbs={thumbs} total={effective} />
+      )}
 
-        <footer className="mt-auto text-xs text-muted-foreground/50 text-center">
-          made with ♥ · pika photo booth
-        </footer>
-      </div>
-    </>
+      {/* Controls */}
+      {!capturedImage && (
+        <div className="w-full max-w-2xl bg-card border-2 border-ink rounded-3xl p-4 sm:p-6">
+          {shooting ? (
+            <div className="flex flex-col items-center gap-3 py-1">
+              <p className="text-sm font-bold text-muted-foreground">hold still, the cat is counting</p>
+              <PhotoProgress current={shotCount} total={effective} />
+            </div>
+          ) : (
+            <div className="flex flex-col gap-4">
+              <div className="flex flex-col gap-1.5">
+                <p className="text-sm font-bold pl-0.5">pick a layout</p>
+                <LayoutPicker active={layout.id} onChange={setLayout} />
+              </div>
+
+              <button
+                onClick={takePhotoSequence}
+                disabled={!!cameraError || !cameraReady}
+                className="btn-sticker w-full flex items-center justify-center gap-2 px-6 py-3.5 rounded-2xl font-display font-extrabold text-lg bg-ginger text-ink disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                <Camera className="w-5 h-5" strokeWidth={2.5} />
+                take {effective} {effective === 1 ? "photo" : "photos"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <canvas ref={canvasRef} className="hidden" />
+
+      <footer className="mt-auto pt-4 text-xs font-bold text-muted-foreground text-center">
+        your photos never leave your device 🐾
+      </footer>
+    </div>
   );
 }

@@ -21,8 +21,9 @@ export default defineConfig({
       manifest: {
         name: "pika",
         short_name: "pika",
-        description: "A ofline photo booth app",
-        theme_color: "#e8447a",
+        description: "A tiny cat photo booth. Works offline.",
+        theme_color: "#fff4f8",
+        background_color: "#fff4f8",
       },
 
       workbox: {

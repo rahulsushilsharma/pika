@@ -47,3 +47,7 @@ export function trackRetake() {
 export function trackAppInstalled() {
   logEvent(analytics, "app_installed");
 }
+
+export function trackCollageShared(params: { theme_id: string; effect_id: string; layout_id: string }) {
+  logEvent(analytics, "collage_shared", params);
+}

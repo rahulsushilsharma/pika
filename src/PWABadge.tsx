@@ -1,7 +1,4 @@
-import { Card, CardContent } from "@/components/ui/card";
-import { RefreshCw, WifiOff, X } from "lucide-react";
 import { useRegisterSW } from "virtual:pwa-register/react";
-import { Button } from "./components/ui/button";
 
 export function PWABadge() {
   const period = 60 * 60 * 1000; // check every hour
@@ -32,43 +29,28 @@ export function PWABadge() {
   return (
     <>
       {(offlineReady || needRefresh) && (
-        <div className="fixed bottom-6 right-6 z-50">
-          <Card className="shadow-xl border border-muted bg-background/90 backdrop-blur-md max-w-sm">
-            <CardContent className="flex flex-col gap-3 p-4">
-              <div className="flex items-center gap-2">
-                {offlineReady ? (
-                  <WifiOff className="h-5 w-5 text-green-500" />
-                ) : (
-                  <RefreshCw className="h-5 w-5 text-blue-500 animate-spin-slow" />
-                )}
-                <p className="text-sm font-medium">
-                  {offlineReady
-                    ? "App ready to work offline."
-                    : "New content available — reload to update."}
-                </p>
-              </div>
-
-              <div className="flex justify-end gap-2">
-                {needRefresh && (
-                  <Button
-                    size="sm"
-                    variant="default"
-                    onClick={() => updateServiceWorker(true)}
-                  >
-                    Reload
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={close}
-                  className="flex items-center gap-1"
-                >
-                  <X className="h-4 w-4" /> Close
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
+        <div
+          role="status"
+          className="fixed bottom-4 inset-x-4 sm:inset-x-auto sm:right-6 sm:bottom-6 z-50 sm:max-w-xs bg-card border-2 border-ink rounded-2xl p-4 shadow-[0_4px_0_var(--ink)] animate-slide-up"
+        >
+          <p className="text-sm font-bold text-pretty">
+            {offlineReady
+              ? "pika works offline now. The cat stays with you."
+              : "A new version of pika is ready."}
+          </p>
+          <div className="flex justify-end gap-2 mt-3">
+            <button onClick={close} className="btn-sticker px-3 py-1.5 rounded-xl text-xs font-bold bg-card">
+              {needRefresh ? "later" : "got it"}
+            </button>
+            {needRefresh && (
+              <button
+                onClick={() => updateServiceWorker(true)}
+                className="btn-sticker px-3 py-1.5 rounded-xl text-xs font-bold bg-ginger"
+              >
+                update now
+              </button>
+            )}
+          </div>
         </div>
       )}
     </>

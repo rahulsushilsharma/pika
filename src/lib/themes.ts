@@ -9,8 +9,8 @@ export interface BoothTheme {
   frameWidth: number;
   padding: number;
   gap: number;
-  // UI accent (oklch string swapped into --primary)
-  accent: string;
+  /** Extra drawing per photo, after effect + border. `s` = scale vs a 640px-wide shot. */
+  decorate?: (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, i: number, s: number) => void;
 }
 
 export interface PhotoEffect {
@@ -20,7 +20,115 @@ export interface PhotoEffect {
   apply: (ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number) => void;
 }
 
+// ── Canvas doodles ────────────────────────────────────────
+
+function paw(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, rot: number) {
+  ctx.save();
+  ctx.translate(cx, cy);
+  ctx.rotate(rot);
+  ctx.beginPath();
+  ctx.ellipse(0, r * 0.3, r * 0.55, r * 0.45, 0, 0, Math.PI * 2);
+  for (const [tx, ty] of [[-0.6, -0.2], [-0.24, -0.62], [0.24, -0.62], [0.6, -0.2]]) {
+    ctx.moveTo(tx * r + r * 0.2, ty * r);
+    ctx.ellipse(tx * r, ty * r, r * 0.2, r * 0.26, 0, 0, Math.PI * 2);
+  }
+  ctx.fill();
+  ctx.restore();
+}
+
+function heart(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy + r * 0.9);
+  ctx.bezierCurveTo(cx - r * 1.4, cy - r * 0.1, cx - r * 0.7, cy - r * 1.2, cx, cy - r * 0.45);
+  ctx.bezierCurveTo(cx + r * 0.7, cy - r * 1.2, cx + r * 1.4, cy - r * 0.1, cx, cy + r * 0.9);
+  ctx.fill();
+  ctx.stroke();
+}
+
+function sparkle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number) {
+  ctx.beginPath();
+  ctx.moveTo(cx, cy - r);
+  ctx.quadraticCurveTo(cx, cy, cx + r, cy);
+  ctx.quadraticCurveTo(cx, cy, cx, cy + r);
+  ctx.quadraticCurveTo(cx, cy, cx - r, cy);
+  ctx.quadraticCurveTo(cx, cy, cx, cy - r);
+  ctx.fill();
+}
+
 export const THEMES: BoothTheme[] = [
+  {
+    id: "kitty",
+    name: "Kitty",
+    emoji: "🐱",
+    backgroundColor: "#fff4f8",
+    backgroundGradient: ["#fff4f8", "#ffe3c2"],
+    frameColor: "#ffa94d",
+    frameWidth: 8,
+    padding: 72,
+    gap: 72,
+    decorate: (ctx, x, y, w, _h, _i, s) => {
+      // ears sit on the top edge of each photo
+      const eh = 62 * s, ew = 40 * s;
+      for (const [cx, dir] of [[x + w * 0.2, -1], [x + w * 0.8, 1]]) {
+        ctx.fillStyle = "#ffa94d";
+        ctx.beginPath();
+        ctx.moveTo(cx - ew, y);
+        ctx.lineTo(cx + dir * 6 * s, y - eh);
+        ctx.lineTo(cx + ew, y);
+        ctx.fill();
+        ctx.fillStyle = "#ff8fb3";
+        ctx.beginPath();
+        ctx.moveTo(cx - ew * 0.5, y);
+        ctx.lineTo(cx + dir * 4 * s, y - eh * 0.6);
+        ctx.lineTo(cx + ew * 0.5, y);
+        ctx.fill();
+      }
+    },
+  },
+  {
+    id: "paws",
+    name: "Paws",
+    emoji: "🐾",
+    backgroundColor: "#f2fbf7",
+    backgroundGradient: ["#fff4f8", "#dff6ed"],
+    frameColor: "#2e2240",
+    frameWidth: 5,
+    padding: 56,
+    gap: 28,
+    decorate: (ctx, x, y, w, h, i, s) => {
+      // a little trail where the cat walked across the corner
+      ctx.fillStyle = "rgba(255, 143, 179, 0.9)";
+      const flip = i % 2 ? -1 : 1;
+      const ox = flip > 0 ? x + w * 0.06 : x + w * 0.94;
+      for (let k = 0; k < 3; k++) {
+        paw(ctx, ox + flip * k * 38 * s, y + h - 22 * s - k * 30 * s, 15 * s, flip * 0.5);
+      }
+    },
+  },
+  {
+    id: "purikura",
+    name: "Purikura",
+    emoji: "💖",
+    backgroundColor: "#ffd6e7",
+    backgroundGradient: ["#ffd6e7", "#e7dcff"],
+    frameColor: "#ffffff",
+    frameWidth: 10,
+    padding: 56,
+    gap: 28,
+    decorate: (ctx, x, y, w, h, i, s) => {
+      ctx.save();
+      ctx.fillStyle = "#ff8fb3";
+      ctx.strokeStyle = "#ffffff";
+      ctx.lineWidth = 5 * s;
+      heart(ctx, i % 2 ? x + w - 6 * s : x + 6 * s, y + 4 * s, 26 * s);
+      ctx.fillStyle = "#ffffff";
+      sparkle(ctx, i % 2 ? x + 30 * s : x + w - 30 * s, y + 30 * s, 16 * s);
+      sparkle(ctx, i % 2 ? x + 56 * s : x + w - 56 * s, y + 58 * s, 9 * s);
+      ctx.fillStyle = "#fff3a6";
+      sparkle(ctx, i % 2 ? x + 28 * s : x + w - 28 * s, y + h - 28 * s, 14 * s);
+      ctx.restore();
+    },
+  },
   {
     id: "classic",
     name: "Classic",
@@ -30,7 +138,6 @@ export const THEMES: BoothTheme[] = [
     frameWidth: 6,
     padding: 40,
     gap: 18,
-    accent: "oklch(0.65 0.22 0)",
   },
   {
     id: "bubblegum",
@@ -42,7 +149,6 @@ export const THEMES: BoothTheme[] = [
     frameWidth: 8,
     padding: 44,
     gap: 20,
-    accent: "oklch(0.65 0.22 0)",
   },
   {
     id: "midnight",
@@ -54,7 +160,6 @@ export const THEMES: BoothTheme[] = [
     frameWidth: 7,
     padding: 40,
     gap: 16,
-    accent: "oklch(0.78 0.15 80)",
   },
   {
     id: "y2k",
@@ -66,7 +171,6 @@ export const THEMES: BoothTheme[] = [
     frameWidth: 6,
     padding: 36,
     gap: 14,
-    accent: "oklch(0.72 0.18 195)",
   },
   {
     id: "nature",
@@ -78,7 +182,6 @@ export const THEMES: BoothTheme[] = [
     frameWidth: 7,
     padding: 42,
     gap: 18,
-    accent: "oklch(0.58 0.12 145)",
   },
   {
     id: "neon",
@@ -90,7 +193,6 @@ export const THEMES: BoothTheme[] = [
     frameWidth: 5,
     padding: 38,
     gap: 16,
-    accent: "oklch(0.6 0.28 300)",
   },
 ];
 
